@@ -1,0 +1,21 @@
+{
+  "description": "Driver for any binary sensor that flips a pin",
+  "class_name": "AnalogSensor",
+  "header_file": "analog_sensor.h",
+  "arguments": [
+    {
+      "name": "pin",
+      "type": "int"
+    }
+  ],
+  "outputs": {
+    "value": {
+      "type": "std_msgs/Int64"
+    }
+  },
+  "dependencies": [
+        {"type": "git", "url": "https://github.com/OpenAgInitiative/openag_firmware_module.git"}
+
+  ],
+  "status_codes": {}
+}

@@ -1,0 +1,15 @@
+{
+    "name": "analog_sensor",
+    "keywords": "openag",
+    "description": "Driver for reading analog value from analog pin",
+    "repository": {
+        "type": "git",
+        "url": ""
+    },
+    "frameworks": "arduino",
+    "platforms": "*",
+    "dependencies": [
+        {
+        }
+    ]
+}

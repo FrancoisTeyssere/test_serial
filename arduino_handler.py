@@ -20,43 +20,39 @@ if __name__ == "__main__":
         try:
             buf = serial_connection.readline()
 
-            pump_1_nutrient_a_1 = 0
-            pump_2_nutrient_b_1 = 0
-            pump_3_ph_up_1 = False
-            pump_4_ph_down_1 = False
-            pump_5_water_1 = False
-            chiller_fan_1 = False
-            chiller_pump_1 = False
-            heater_core_2_1 = False
-            air_flush_1 = 0
-            water_aeration_pump_1 = False
-            water_circulation_pump_1 = False
-            chamber_fan_1 = True
-            blue = random.random()
-            white = random.random()
-            red = random.random()
-            heater_core_1_1 = False
-            chiller_compressor_1 = False
+            drill = True
+            vacuum = False
+            light = False
+            fwd_left = True
+            fwd_right = False
+            fwd_up = True
+            rev_left = False
+            rev_right = True
+            rev_up = False
+            stop_left = True
+            stop_right = False
+            stop_up = True
+            speed_left = 0
+            speed_right = 125
+            speed_up = 254
 
             # status, pump1, pump2, pump3, pump4, pump5, chiller_fan, chiller_pump, heater_core2, air_flush, water_aeration, water_circulation, chamber_fan, blue, white, red, heater_core1, chiller_compressor
-            message = "0,{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
-                pump_1_nutrient_a_1,
-                pump_2_nutrient_b_1,
-                pump_3_ph_up_1,
-                pump_4_ph_down_1,
-                pump_5_water_1,
-                chiller_fan_1,
-                chiller_pump_1,
-                heater_core_2_1,
-                air_flush_1,
-                water_aeration_pump_1,
-                water_circulation_pump_1,
-                chamber_fan_1,
-                blue,
-                white,
-                red,
-                heater_core_1_1,
-                chiller_compressor_1
+            message = "0,{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n".format(
+                drill,
+                vacuum,
+                light,
+                fwd_left,
+                fwd_right,
+                fwd_up,
+                rev_left,
+                rev_right,
+                rev_up,
+                stop_left,
+                stop_right,
+                stop_up,
+                speed_left,
+                speed_right,
+                speed_up,
             ).encode('utf-8')
 
             serial_connection.write(message)
@@ -67,7 +63,7 @@ if __name__ == "__main__":
                 print("status: {d[0]}, device: {d[1]}, code: {d[2]}".format(d=ary))
                 continue
             # status, hum, temp, co2, water_temp, water_level_low, water_level_high, water_potential_hydrogen, water_electrical_conductivity
-            print("status: {d[0]}, humidity: {d[1]}, temperature: {d[2]}, co2: {d[3]}, water_temp: {d[4]}, water_low: {d[5]}, water_high: {d[6]}, pH: {d[7]}, EC:{d[8]}".format(d=ary))
+            print("status: {d[0]}, torque_error: {d[1]}, top_switch: {d[2]}, bottom_switch: {d[3]}, mid_switch: {d[4]}, start_button: {d[5]}, drill_button: {d[6]}, setting_button: {d[7]}, translator_up:{d[8]}, translator_down:{d[9]}, pot1:{d[10]}, pot2:{d[11]}".format(d=ary))
         # Short reads will show up as key errors since there are less per array
         except IndexError:
             print("Short read, received part of a message: {}".format(buf.decode()))

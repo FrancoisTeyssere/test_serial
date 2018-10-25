@@ -1,50 +1,53 @@
-#include <openag_am2315.h>
-#include <openag_mhz16.h>
-#include <openag_ds18b20.h>
-#include <openag_atlas_ph.h>
-#include <openag_atlas_ec.h>
 #include <openag_binary_sensor.h>
 
 #include <openag_pwm_actuator.h>
 #include <openag_binary_actuator.h>
-#include <openag_pulse_actuator.h>
-#include <openag_doser_pump.h>
-#include <openag_air_flush.h>
-#include <openag_tone_actuator.h>
+#include <analog_sensor.h>
+
+#include "config.h"
+//#include "misc_classes.h"
+//#include "global_variables.h"
+//#include "cmd_functions.h"
+
 
 // Sensor Instances
-Am2315 am2315_1;
-MHZ16 mhz16_1(77);
-Ds18b20 ds18b20_1(5);
-BinarySensor water_level_sensor_low_1(3, true);
-BinarySensor water_level_sensor_high_1(4, true);
-AtlasPh atlas_ph_1(99);
-AtlasEc atlas_ec_1(100);
+BinarySensor torque_error(pinTorqueError, true);
+BinarySensor top_switch(pinTopSwitch, true);
+BinarySensor bottom_switch(pinBottomSwitch, true);
+BinarySensor mid_switch(pinMidSwitch, true);
+BinarySensor start_button(pinStart, true);
+BinarySensor drill_button(pinDrillButton, true);
+BinarySensor setting_button(pinSettingButton, true);
+BinarySensor translator_up(pinTranslatorUp, true);
+BinarySensor translator_down(pinTranslatorDown, true);
+
+AnalogSensor pot1(pinPot1);
+AnalogSensor pot2(pinPot2);
 
 // Actuator Instances. Sorted by pin number.
 // The types are kind of irrelevant and I think we don't even need some of these.
-DoserPump pump_1_nutrient_a_1(28, true);
-DoserPump pump_2_nutrient_b_1(29, true);
-PulseActuator pump_3_ph_up_1(30, true, 50, 4000);
-PulseActuator pump_4_ph_down_1(31, true, 50, 4000);
-BinaryActuator pump_5_water_1(32, true, 10000);
-BinaryActuator chiller_fan_1(33, true, 10000);
-BinaryActuator chiller_pump_1(34, true, 10000);
-BinaryActuator heater_core_2_1(35, true, 10000);
-AirFlush air_flush_1(36, true);
-BinaryActuator water_aeration_pump_1(37, true, 10000);
-BinaryActuator water_circulation_pump_1(38, true, 10000);
-BinaryActuator chamber_fan_1(39, true, 10000);
-PwmActuator led_blue_1(40, true, 0);
-PwmActuator led_white_1(41, true, 0);
-PwmActuator led_red_1(42, true, 0);
-BinaryActuator heater_core_1_1(43, true, 10000);
-ToneActuator chiller_compressor_1(9, false, 140, -1);
+
+BinaryActuator drill(pinDrill, true, 10000);
+BinaryActuator vacuum(pinVacuum, true, 10000);
+BinaryActuator light(pinLight, true, 10000);
+BinaryActuator fwd_left(pinFWDLeft, true, 10000);
+BinaryActuator fwd_right(pinFWDRight, true, 10000);
+BinaryActuator fwd_up(pinFWDUp, true, 10000);
+BinaryActuator rev_left(pinREVLeft, true, 10000);
+BinaryActuator rev_right(pinREVRight, true, 10000);
+BinaryActuator rev_up(pinREVUp, true, 10000);
+BinaryActuator stop_left(pinSTOPLeft, true, 10000);
+BinaryActuator stop_right(pinSTOPRight, true, 10000);
+BinaryActuator stop_up(pinSTOPUp, true, 10000);
+
+PwmActuator speed_left(pinSpeedLeft, true, 0);
+PwmActuator speed_right(pinSpeedRight, true, 0);
+PwmActuator speed_up(pinSpeedUp, true, 0);
 
 // Message string
 String message = "";
 bool stringComplete = false;
-const int COMMAND_LENGTH = 18; // status + num_actuators
+const int COMMAND_LENGTH = 16; // status + num_actuators
 
 // Timing constants
 uint32_t delayMs = 50; //ms
@@ -63,32 +66,38 @@ void setup() {
   message.reserve(200);
 
   // Begin sensors
-  beginModule(am2315_1, "AM2315 #1");
-  beginModule(mhz16_1, "MHZ16 #1");
-  beginModule(ds18b20_1, "DS18B20 #1");
-  beginModule(atlas_ec_1, "Atlas EC #1");
-  beginModule(atlas_ph_1, "Atlas pH #1");
-  beginModule(water_level_sensor_low_1, "Water Level Low sensor");
-  beginModule(water_level_sensor_high_1, "Water Level High sensor");
+  beginModule(torque_error, "Torque Error #1");
+  beginModule(top_switch, "Top Switch #1");
+  beginModule(bottom_switch, "Bottom Switch #1");
+  beginModule(mid_switch, "Mid Switch #1");
+  beginModule(start_button, "Start Button #1");
+  beginModule(drill_button, "Dril Button");
+  beginModule(setting_button, "Setting Button");
+  beginModule(translator_up, "Translator Up");
+  beginModule(translator_down, "Translator Down");
+
+  beginModule(pot1, "Potentiometer 1");
+  beginModule(pot2, "Potentiometer 2");
+
 
   // Begin Actuators
-  beginModule(pump_1_nutrient_a_1, "Pump 1, Nutrient A");
-  beginModule(pump_2_nutrient_b_1, "Pump 2, Nutrient B");
-  beginModule(pump_3_ph_up_1, "Pump 3, pH Up");
-  beginModule(pump_4_ph_down_1, "Pump 4, pH Down");
-  beginModule(pump_5_water_1, "Pump 5, Water");
-  beginModule(chiller_fan_1, "Chiller Fan");
-  beginModule(chiller_pump_1, "Chiller Pump");
-  beginModule(heater_core_2_1, "Heater core #2");
-  beginModule(air_flush_1, "Air Flush");
-  beginModule(water_aeration_pump_1, "Water Aeration Pump");
-  beginModule(water_circulation_pump_1, "Water Circulation Pump");
-  beginModule(chamber_fan_1, "Chamber Circulation Fan");
-  beginModule(led_blue_1, "LED Blue");
-  beginModule(led_white_1, "LED White");
-  beginModule(led_red_1, "LED Red");
-  beginModule(heater_core_1_1, "Heater Core #1");
-  beginModule(chiller_compressor_1, "Chiller Compressor #1");
+  beginModule(drill, "Drill");
+  beginModule(vacuum, "Vacuum");
+  beginModule(light, "Pump 3, pH Up");
+  beginModule(fwd_left, "Forward Left");
+  beginModule(fwd_right, "Forward Right");
+  beginModule(fwd_up, "Forward Up");
+  beginModule(rev_left, "Reverse Left");
+  beginModule(rev_right, "Reverse Right");
+  beginModule(rev_up, "Reverse Up");
+  beginModule(stop_left, "Stop Left");
+  beginModule(stop_right, "Stop Right");
+  beginModule(stop_up, "Stop Up");
+
+  beginModule(speed_left, "Speed Left");
+  beginModule(speed_right, "Speed Right");
+  beginModule(speed_up, "Speed Up");
+
 }
 
 void loop() {
@@ -142,45 +151,43 @@ void actuatorLoop(){
     if(splitMessages[0] != "0"){
       return;
     }
-    pump_1_nutrient_a_1.set_cmd(splitMessages[1].toFloat());        // DoserPump float flow_rate
-    pump_2_nutrient_b_1.set_cmd(splitMessages[2].toFloat());        // DoserPump float flow_rate
-    pump_3_ph_up_1.set_cmd(str2bool(splitMessages[3]));             // PulseActuator bool
-    pump_4_ph_down_1.set_cmd(str2bool(splitMessages[4]));           // PulseActuator bool
-    pump_5_water_1.set_cmd(str2bool(splitMessages[5]));             // BinaryActuator bool
-    chiller_fan_1.set_cmd(str2bool(splitMessages[6]));              // BinaryActuator bool
-    chiller_pump_1.set_cmd(str2bool(splitMessages[7]));             // BinaryActuator bool
-    heater_core_2_1.set_cmd(str2bool(splitMessages[8]));            // BinaryActuator bool
-    air_flush_1.set_cmd(splitMessages[9].toFloat());                // AirFlush float minutes_on
-    water_aeration_pump_1.set_cmd(str2bool(splitMessages[10]));      // BinaryActuator bool
-    water_circulation_pump_1.set_cmd(str2bool(splitMessages[11]));  // BinaryActuator bool
-    chamber_fan_1.set_cmd(str2bool(splitMessages[12]));             // BinaryActuator bool
-    led_blue_1.set_cmd(splitMessages[13].toFloat());                // PwmActuator float 0-1
-    led_white_1.set_cmd(splitMessages[14].toFloat());               // PwmActuator float 0-1
-    led_red_1.set_cmd(splitMessages[15].toFloat());                 // PwmActuator float 0-1
-    heater_core_1_1.set_cmd(str2bool(splitMessages[16]));           // BinaryActuator bool
-    chiller_compressor_1.set_cmd(str2bool(splitMessages[17]));      // ToneActuator bool on/off
+    drill.set_cmd(str2bool(splitMessages[1]));        // DoserPump float flow_rate
+    vacuum.set_cmd(str2bool(splitMessages[2]));        // DoserPump float flow_rate
+    light.set_cmd(str2bool(splitMessages[3]));        // DoserPump float flow_rate
+    fwd_left.set_cmd(str2bool(splitMessages[4]));        // DoserPump float flow_rate
+    fwd_right.set_cmd(str2bool(splitMessages[5]));        // DoserPump float flow_rate
+    fwd_up.set_cmd(str2bool(splitMessages[6]));        // DoserPump float flow_rate
+    rev_left.set_cmd(str2bool(splitMessages[7]));        // DoserPump float flow_rate
+    rev_right.set_cmd(str2bool(splitMessages[8]));        // DoserPump float flow_rate
+    rev_up.set_cmd(str2bool(splitMessages[9]));        // DoserPump float flow_rate
+    stop_left.set_cmd(str2bool(splitMessages[10]));        // DoserPump float flow_rate
+    stop_right.set_cmd(str2bool(splitMessages[11]));        // DoserPump float flow_rate
+    stop_up.set_cmd(str2bool(splitMessages[12]));        // DoserPump float flow_rate
+
+    speed_left.set_cmd(splitMessages[13].toFloat());        // DoserPump float flow_rate
+    speed_right.set_cmd(splitMessages[14].toFloat());        // DoserPump float flow_rate
+    speed_up.set_cmd(splitMessages[15].toFloat());        // DoserPump float flow_rate
+
   }
 
   // Run the update loop
   bool allActuatorSuccess = true;
 
-  allActuatorSuccess = updateModule(pump_1_nutrient_a_1, "Pump 1 Nutrient A") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(pump_2_nutrient_b_1, "Pump 2 Nutrient B") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(pump_3_ph_up_1, "Pump 3 pH Up") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(pump_4_ph_down_1, "Pump 4 pH Down") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(pump_5_water_1, "Pump 5 Water") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(chiller_fan_1, "Chiller Fan") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(chiller_pump_1, "Chiller Pump") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(heater_core_2_1, "Heater core #2") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(air_flush_1, "Air Flush") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(water_aeration_pump_1, "Water Aeration Pump") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(water_circulation_pump_1, "Water Circulation Pump") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(chamber_fan_1, "Chamber Circulation Fan") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(led_blue_1, "LED Blue") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(led_white_1, "LED White") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(led_red_1, "LED Red") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(heater_core_1_1, "Heater Core #1") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(chiller_compressor_1, "Chiller Compressor #1") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(drill, "Drill") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(vacuum, "Vacuum") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(light, "Pump 3, pH Up") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(fwd_left, "Forward Left") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(fwd_right, "Forward Right") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(fwd_up, "Forward Up") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(rev_left, "Reverse Left") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(rev_right, "Reverse Right") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(rev_up, "Reverse Up") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(stop_left, "Stop Left") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(stop_right, "Stop Right") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(stop_up, "Stop Up") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(speed_left, "Speed Left") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(speed_right, "Speed Right") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(speed_up, "Speed Up") && allActuatorSuccess;
 
   if(!allActuatorSuccess){
     return;
@@ -191,13 +198,18 @@ void sensorLoop(){
   bool allSensorSuccess = true;
 
   // Run Update on all sensors
-  allSensorSuccess = updateModule(am2315_1, "AM2315 #1") && allSensorSuccess;
-  allSensorSuccess = updateModule(mhz16_1, "MHZ16 #1") && allSensorSuccess;
-  allSensorSuccess = updateModule(ds18b20_1, "DS18B20 #1") && allSensorSuccess;
-  allSensorSuccess = updateModule(atlas_ec_1, "Atlas EC #1") && allSensorSuccess;
-  allSensorSuccess = updateModule(atlas_ph_1, "Atlas pH #1") && allSensorSuccess;
-  allSensorSuccess = updateModule(water_level_sensor_low_1, "Water Level Low sensor") && allSensorSuccess;
-  allSensorSuccess = updateModule(water_level_sensor_high_1, "Water Level High sensor") && allSensorSuccess;
+  allSensorSuccess = updateModule(torque_error, "Torque Error #1") && allSensorSuccess;
+  allSensorSuccess = updateModule(top_switch, "Top Switch #1") && allSensorSuccess;
+  allSensorSuccess = updateModule(bottom_switch, "Bottom Switch #1") && allSensorSuccess;
+  allSensorSuccess = updateModule(mid_switch, "Mid Switch #1") && allSensorSuccess;
+  allSensorSuccess = updateModule(start_button, "Start Button #1") && allSensorSuccess;
+  allSensorSuccess = updateModule(drill_button, "Drill Button") && allSensorSuccess;
+  allSensorSuccess = updateModule(setting_button, "Setting Button") && allSensorSuccess;
+  allSensorSuccess = updateModule(translator_up, "Translator Up") && allSensorSuccess;
+  allSensorSuccess = updateModule(translator_down, "Translator Down") && allSensorSuccess;
+  allSensorSuccess = updateModule(pot1, "Potentiometer 1") && allSensorSuccess;
+  allSensorSuccess = updateModule(pot2, "Potentiometer 2") && allSensorSuccess;
+
 
   if(!allSensorSuccess){
     return;
@@ -206,14 +218,17 @@ void sensorLoop(){
   // Prints the data in CSV format via serial.
   // Columns: status,hum,temp,co2
   Serial.print(OK);                                             Serial.print(',');
-  Serial.print(am2315_1.get_air_humidity());                    Serial.print(',');
-  Serial.print(am2315_1.get_air_temperature());                 Serial.print(',');
-  Serial.print(mhz16_1.get_air_carbon_dioxide());               Serial.print(',');
-  Serial.print(ds18b20_1.get_temperature());                    Serial.print(',');
-  Serial.print(water_level_sensor_low_1.get_is_on());           Serial.print(',');
-  Serial.print(water_level_sensor_high_1.get_is_on());          Serial.print(',');
-  Serial.print(atlas_ph_1.get_water_potential_hydrogen());      Serial.print(',');
-  Serial.print(atlas_ec_1.get_water_electrical_conductivity()); Serial.print('\n');
+  Serial.print(torque_error.get_is_on());                    Serial.print(',');
+  Serial.print(top_switch.get_is_on());                    Serial.print(',');
+  Serial.print(bottom_switch.get_is_on());                    Serial.print(',');
+  Serial.print(mid_switch.get_is_on());                    Serial.print(',');
+  Serial.print(start_button.get_is_on());                    Serial.print(',');
+  Serial.print(drill_button.get_is_on());                    Serial.print(',');
+  Serial.print(setting_button.get_is_on());                    Serial.print(',');
+  Serial.print(translator_up.get_is_on());                    Serial.print(',');
+  Serial.print(translator_down.get_is_on());                    Serial.print(',');
+  Serial.print(pot1.getValue());                    Serial.print(',');
+  Serial.print(pot2.getValue()); Serial.print('\n');
   // https://www.arduino.cc/en/serial/flush
   // Wait until done writing.
   Serial.flush();
