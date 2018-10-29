@@ -1,0 +1,16 @@
+{
+    "name": "ble2_motor",
+    "keywords": "motor, ble2",
+    "description": "Driver for Oriental Motor Ble2 motor",
+    "repository": {
+        "type": "git",
+        "url": ""
+    },
+    "frameworks": "arduino",
+    "platforms": "*",
+    "dependencies": [
+        {
+            "name": "openag_module"
+        }
+    ]
+}

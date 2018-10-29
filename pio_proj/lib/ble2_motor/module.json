@@ -1,0 +1,35 @@
+{
+    "header_file": "ble2_motor.h",
+    "class_name": "BLE2Motor",
+    "arguments": [
+        {
+            "name": "pin_speed",
+            "type": "int"
+        },
+        {
+            "name": "pin_fwd",
+            "type": "int"
+        },
+        {
+            "name": "pin_rev",
+            "type": "int"
+        },
+	{
+            "name": "pin_stop",
+            "type": "int"
+        },
+	{
+            "name": "shutoff_ms",
+            "type": "int",
+            "default": 10000
+        }
+    ],
+    "inputs": {
+        "cmd": {
+            "type": "std_msgs/Float32"
+        }
+    },
+    "dependencies": [
+        {"type": "git", "url": "http://github.com/OpenAgInitiative/openag_firmware_module.git"}
+    ]
+}

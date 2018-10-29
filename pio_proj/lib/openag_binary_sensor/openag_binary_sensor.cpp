@@ -7,7 +7,7 @@
  ****************************************************/
 #include "openag_binary_sensor.h"
 
-BinarySensor::BinarySensor(int pin, bool is_active_low) {
+BinarySensor::BinarySensor(int pin, bool is_active_low): _is_on(false), _prev_state(false) {
   _pin = pin;
   _is_active_low = is_active_low;
   status_level = OK;
@@ -35,5 +35,10 @@ bool BinarySensor::get_is_on() {
 }
 
 void BinarySensor::readData() {
+  _prev_state = _is_on;
   _is_on = digitalRead(_pin) ^ _is_active_low;
+}
+
+bool BinarySensor::wasPressed() {
+  return (!_is_on && _prev_state);
 }

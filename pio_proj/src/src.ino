@@ -3,6 +3,7 @@
 #include <openag_pwm_actuator.h>
 #include <openag_binary_actuator.h>
 #include <analog_sensor.h>
+#include <ble2_motor.h>
 
 #include "config.h"
 //#include "misc_classes.h"
@@ -30,15 +31,11 @@ AnalogSensor pot2(pinPot2);
 BinaryActuator drill(pinDrill, true, 10000);
 BinaryActuator vacuum(pinVacuum, true, 10000);
 BinaryActuator light(pinLight, true, 10000);
-BinaryActuator fwd_left(pinFWDLeft, true, 10000);
-BinaryActuator fwd_right(pinFWDRight, true, 10000);
-BinaryActuator fwd_up(pinFWDUp, true, 10000);
-BinaryActuator rev_left(pinREVLeft, true, 10000);
-BinaryActuator rev_right(pinREVRight, true, 10000);
-BinaryActuator rev_up(pinREVUp, true, 10000);
-BinaryActuator stop_left(pinSTOPLeft, true, 10000);
-BinaryActuator stop_right(pinSTOPRight, true, 10000);
-BinaryActuator stop_up(pinSTOPUp, true, 10000);
+
+
+BLE2Motor motor_left(pinSpeedLeft, pinFWDLeft, pinREVLeft, pinSTOPLeft, 1000);
+BLE2Motor motor_right(pinSpeedRight, pinFWDRight, pinREVRight, pinSTOPRight, 1000);
+BLE2Motor motor_up(pinSpeedUp, pinFWDUp, pinREVUp, pinSTOPUp, 1000);
 
 PwmActuator speed_left(pinSpeedLeft, true, 0);
 PwmActuator speed_right(pinSpeedRight, true, 0);
@@ -84,15 +81,6 @@ void setup() {
   beginModule(drill, "Drill");
   beginModule(vacuum, "Vacuum");
   beginModule(light, "Pump 3, pH Up");
-  beginModule(fwd_left, "Forward Left");
-  beginModule(fwd_right, "Forward Right");
-  beginModule(fwd_up, "Forward Up");
-  beginModule(rev_left, "Reverse Left");
-  beginModule(rev_right, "Reverse Right");
-  beginModule(rev_up, "Reverse Up");
-  beginModule(stop_left, "Stop Left");
-  beginModule(stop_right, "Stop Right");
-  beginModule(stop_up, "Stop Up");
 
   beginModule(speed_left, "Speed Left");
   beginModule(speed_right, "Speed Right");
@@ -109,8 +97,9 @@ void loop() {
   }
   prev_time = millis();
 
-  actuatorLoop();
+  //run sensor loop first to use actualised value in actuator loop
   sensorLoop();
+  actuatorLoop();
 }
 
 // Runs inbetween loop()s, just takes any input serial to a string buffer.
@@ -135,6 +124,52 @@ void serialEvent() {
 }
 // #endregion
 
+bool manage_translator(float speed)
+{
+  if(translator_up.get_is_on())
+  {
+    motor_up.set_cmd(-1.5*DEFAULT_TRANSLATOR_SPEED);
+    return true;
+  }
+  else if (translator_down.get_is_on())
+  {
+    motor_up.set_cmd(pot1.getValue()*MAX_TRANSLATOR_SPEED / 1024);
+    return true;
+  }
+  else if(translator_up.wasPressed() || translator_down.wasPressed())
+  {
+    motor_up.stop();
+    return false;
+  }
+  else //if nothing happened on command pannel, process message
+  {
+    motor_up.set_cmd(speed);
+    return (speed != 0);
+  }
+}
+
+bool manage_drill(bool cmd)
+{
+  if(drill_button.get_is_on())
+  {
+    drill.set_cmd(true);
+    vacuum.set_cmd(true);
+    return true;
+  }
+  else if(drill_button.wasPressed())
+  {
+    drill.set_cmd(false);
+    vacuum.set_cmd(false);
+    return false;
+  }
+  else
+  {
+    drill.set_cmd(cmd);
+    vacuum.set_cmd(cmd);
+    return cmd;
+  }
+}
+
 void actuatorLoop(){
   // If serial message, actuate based on it.
   if(stringComplete){
@@ -151,22 +186,14 @@ void actuatorLoop(){
     if(splitMessages[0] != "0"){
       return;
     }
-    drill.set_cmd(str2bool(splitMessages[1]));        // DoserPump float flow_rate
-    vacuum.set_cmd(str2bool(splitMessages[2]));        // DoserPump float flow_rate
     light.set_cmd(str2bool(splitMessages[3]));        // DoserPump float flow_rate
-    fwd_left.set_cmd(str2bool(splitMessages[4]));        // DoserPump float flow_rate
-    fwd_right.set_cmd(str2bool(splitMessages[5]));        // DoserPump float flow_rate
-    fwd_up.set_cmd(str2bool(splitMessages[6]));        // DoserPump float flow_rate
-    rev_left.set_cmd(str2bool(splitMessages[7]));        // DoserPump float flow_rate
-    rev_right.set_cmd(str2bool(splitMessages[8]));        // DoserPump float flow_rate
-    rev_up.set_cmd(str2bool(splitMessages[9]));        // DoserPump float flow_rate
-    stop_left.set_cmd(str2bool(splitMessages[10]));        // DoserPump float flow_rate
-    stop_right.set_cmd(str2bool(splitMessages[11]));        // DoserPump float flow_rate
-    stop_up.set_cmd(str2bool(splitMessages[12]));        // DoserPump float flow_rate
 
-    speed_left.set_cmd(splitMessages[13].toFloat());        // DoserPump float flow_rate
-    speed_right.set_cmd(splitMessages[14].toFloat());        // DoserPump float flow_rate
-    speed_up.set_cmd(splitMessages[15].toFloat());        // DoserPump float flow_rate
+    motor_left.set_cmd(splitMessages[4].toFloat());        // DoserPump float flow_rate
+    motor_right.set_cmd(splitMessages[5].toFloat());        // DoserPump float flow_rate
+
+    //allows to handle manual command directly from arduino, in case of link mismatch
+    manage_drill(str2bool(splitMessages[1]));
+    manage_translator(splitMessages[6].toFloat());
 
   }
 
@@ -175,19 +202,10 @@ void actuatorLoop(){
 
   allActuatorSuccess = updateModule(drill, "Drill") && allActuatorSuccess;
   allActuatorSuccess = updateModule(vacuum, "Vacuum") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(light, "Pump 3, pH Up") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(fwd_left, "Forward Left") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(fwd_right, "Forward Right") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(fwd_up, "Forward Up") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(rev_left, "Reverse Left") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(rev_right, "Reverse Right") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(rev_up, "Reverse Up") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(stop_left, "Stop Left") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(stop_right, "Stop Right") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(stop_up, "Stop Up") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(speed_left, "Speed Left") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(speed_right, "Speed Right") && allActuatorSuccess;
-  allActuatorSuccess = updateModule(speed_up, "Speed Up") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(light, "Light") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(motor_left, "Motor Left") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(motor_right, "Motor Right") && allActuatorSuccess;
+  allActuatorSuccess = updateModule(motor_up, "Motor up") && allActuatorSuccess;
 
   if(!allActuatorSuccess){
     return;
@@ -198,15 +216,15 @@ void sensorLoop(){
   bool allSensorSuccess = true;
 
   // Run Update on all sensors
-  allSensorSuccess = updateModule(torque_error, "Torque Error #1") && allSensorSuccess;
-  allSensorSuccess = updateModule(top_switch, "Top Switch #1") && allSensorSuccess;
-  allSensorSuccess = updateModule(bottom_switch, "Bottom Switch #1") && allSensorSuccess;
-  allSensorSuccess = updateModule(mid_switch, "Mid Switch #1") && allSensorSuccess;
-  allSensorSuccess = updateModule(start_button, "Start Button #1") && allSensorSuccess;
-  allSensorSuccess = updateModule(drill_button, "Drill Button") && allSensorSuccess;
-  allSensorSuccess = updateModule(setting_button, "Setting Button") && allSensorSuccess;
-  allSensorSuccess = updateModule(translator_up, "Translator Up") && allSensorSuccess;
-  allSensorSuccess = updateModule(translator_down, "Translator Down") && allSensorSuccess;
+  allSensorSuccess = updateModule(torque_error, "torque error") && allSensorSuccess;
+  allSensorSuccess = updateModule(top_switch, "top switch") && allSensorSuccess;
+  allSensorSuccess = updateModule(bottom_switch, "bottom switch") && allSensorSuccess;
+  allSensorSuccess = updateModule(mid_switch, "mid switch") && allSensorSuccess;
+  allSensorSuccess = updateModule(start_button, "start button") && allSensorSuccess;
+  allSensorSuccess = updateModule(drill_button, "drill button") && allSensorSuccess;
+  allSensorSuccess = updateModule(setting_button, "setting button") && allSensorSuccess;
+  allSensorSuccess = updateModule(translator_up, "translator up") && allSensorSuccess;
+  allSensorSuccess = updateModule(translator_down, "translator down") && allSensorSuccess;
   allSensorSuccess = updateModule(pot1, "Potentiometer 1") && allSensorSuccess;
   allSensorSuccess = updateModule(pot2, "Potentiometer 2") && allSensorSuccess;
 
@@ -222,7 +240,7 @@ void sensorLoop(){
   Serial.print(top_switch.get_is_on());                    Serial.print(',');
   Serial.print(bottom_switch.get_is_on());                    Serial.print(',');
   Serial.print(mid_switch.get_is_on());                    Serial.print(',');
-  Serial.print(start_button.get_is_on());                    Serial.print(',');
+  Serial.print(start_button.wasPressed());                    Serial.print(',');
   Serial.print(drill_button.get_is_on());                    Serial.print(',');
   Serial.print(setting_button.get_is_on());                    Serial.print(',');
   Serial.print(translator_up.get_is_on());                    Serial.print(',');

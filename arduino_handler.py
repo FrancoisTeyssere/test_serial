@@ -27,7 +27,7 @@ if __name__ == "__main__":
             fwd_right = False
             fwd_up = True
             rev_left = False
-            rev_right = True
+            rev_right = Truea
             rev_up = False
             stop_left = True
             stop_right = False

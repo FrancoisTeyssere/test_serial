@@ -18,7 +18,7 @@ class AnalogSensor : public Module {
     // Private variables
     int _pin;
     uint32_t _time_of_last_reading;
-    const static uint32_t _min_update_interval = 2000;
+    const static uint32_t _min_update_interval = 200;
     long _value;
 
     // Private methods
