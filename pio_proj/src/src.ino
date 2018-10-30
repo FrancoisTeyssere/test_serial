@@ -181,7 +181,7 @@ bool manage_translator(float speed)
   }
   else //if nothing happened on command pannel, process message
   {
-    motor_up.set_cmd(speed);
+    motor_up.set_cmd(speed*pot1.getValue()*MAX_TRANSLATOR_SPEED / 1024);
 
     return (speed != 0);
   }

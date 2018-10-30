@@ -208,7 +208,7 @@ if __name__ == '__main__':
         }
     }
 
-    serial_port_id = rospy.get_param("~serial_port_id", "/dev/ttyACM0")
+    serial_port_id = rospy.get_param("~serial_port_id", "/dev/arduino0")
     publisher_rate_hz = rospy.get_param("~publisher_rate_hz", 1)
     baud_rate = rospy.get_param("~baud_rate", 115200)
 
