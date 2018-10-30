@@ -28,11 +28,9 @@ uint8_t BLE2Motor::begin() {
 
 uint8_t BLE2Motor::update() {
   uint32_t curr_time = millis();
+
   if ((curr_time - _last_cmd) > _shutoff_ms) {
-    digitalWrite(_pin_fwd, HIGH);
-    digitalWrite(_pin_rev, HIGH);
-    digitalWrite(_pin_stop, HIGH);
-    analogWrite(_pin_speed, 0);
+    set_cmd(0);
   }
   return status_level;
 }
@@ -46,6 +44,7 @@ uint8_t BLE2Motor::set_cmd(float motor_speed) {
   _last_cmd = millis();
   float speed = motor_speed;
   float pwm_intensity = 0;
+
 
   if (motor_speed > 0)
   {

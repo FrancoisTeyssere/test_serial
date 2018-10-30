@@ -18,7 +18,7 @@ class BinaryActuator : public Module {
     // Private variables
     int _pin;
     bool _is_active_low;
-    int _shutoff_ms = 10000;
+    int _shutoff_ms = 3000;
     uint32_t _last_cmd;
 };
 

@@ -21,7 +21,7 @@ class BLE2Motor : public Module {
     int _pin_fwd;
     int _pin_rev;
     int _pin_stop;
-    int _shutoff_ms = 100;
+    int _shutoff_ms = 3000;
     uint32_t _last_cmd;
 };
 

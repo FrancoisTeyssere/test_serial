@@ -4,11 +4,14 @@
 #include <openag_binary_actuator.h>
 #include <analog_sensor.h>
 #include <ble2_motor.h>
+#include <light_manager.h>
 
 #include "config.h"
 //#include "misc_classes.h"
 //#include "global_variables.h"
 //#include "cmd_functions.h"
+
+#define BUFFER_SIZE 200
 
 
 // Sensor Instances
@@ -28,23 +31,25 @@ AnalogSensor pot2(pinPot2);
 // Actuator Instances. Sorted by pin number.
 // The types are kind of irrelevant and I think we don't even need some of these.
 
-BinaryActuator drill(pinDrill, true, 10000);
-BinaryActuator vacuum(pinVacuum, true, 10000);
-BinaryActuator light(pinLight, true, 10000);
+BinaryActuator drill(pinDrill, true, 3000);
+BinaryActuator vacuum(pinVacuum, true, 3000);
+LightManager light(pinLight, true, 3000);
 
 
-BLE2Motor motor_left(pinSpeedLeft, pinFWDLeft, pinREVLeft, pinSTOPLeft, 1000);
-BLE2Motor motor_right(pinSpeedRight, pinFWDRight, pinREVRight, pinSTOPRight, 1000);
-BLE2Motor motor_up(pinSpeedUp, pinFWDUp, pinREVUp, pinSTOPUp, 1000);
+BLE2Motor motor_left(pinSpeedLeft, pinFWDLeft, pinREVLeft, pinSTOPLeft, 3000);
+BLE2Motor motor_right(pinSpeedRight, pinFWDRight, pinREVRight, pinSTOPRight, 3000);
+BLE2Motor motor_up(pinSpeedUp, pinFWDUp, pinREVUp, pinSTOPUp, 3000);
 
-PwmActuator speed_left(pinSpeedLeft, true, 0);
-PwmActuator speed_right(pinSpeedRight, true, 0);
-PwmActuator speed_up(pinSpeedUp, true, 0);
+
+
 
 // Message string
 String message = "";
+char input_buff[BUFFER_SIZE] = {0};
 bool stringComplete = false;
-const int COMMAND_LENGTH = 16; // status + num_actuators
+const int COMMAND_LENGTH = 7; // status + num_actuators
+String msg_state = "";
+int nb_char = 0;
 
 // Timing constants
 uint32_t delayMs = 50; //ms
@@ -82,45 +87,78 @@ void setup() {
   beginModule(vacuum, "Vacuum");
   beginModule(light, "Pump 3, pH Up");
 
-  beginModule(speed_left, "Speed Left");
-  beginModule(speed_right, "Speed Right");
-  beginModule(speed_up, "Speed Up");
+  beginModule(motor_left, "Motor Left");
+  beginModule(motor_right, "Motor Right");
+  beginModule(motor_up, "Motor Up");
+
+  pinMode(52, OUTPUT);
+  digitalWrite(52, LOW);
 
 }
 
 void loop() {
 
+
   // Throttle the Arduino since the python node can't keep up
   // and the serial buffer overflows. We do this without blocking.
-  if(millis() - prev_time < delayMs){
-    return;
-  }
+  if(millis() - prev_time > delayMs){
+
   prev_time = millis();
 
   //run sensor loop first to use actualised value in actuator loop
   sensorLoop();
   actuatorLoop();
+  }
 }
 
 // Runs inbetween loop()s, just takes any input serial to a string buffer.
 // Runs as realtime as possible since loop has no delay() calls. (It shouldn't!)
+
+void empty_buffer()
+{
+  for(int i=0;i<BUFFER_SIZE;i++)
+
+  input_buff[i] = 0;
+}
 void serialEvent() {
   if(stringComplete){
     message = "";
+    empty_buffer();
     stringComplete = false;
+    //msg_state = 0;
+    nb_char = 0;
+
   }
-  while (Serial.available()) {
+  long TIMEOUT = 10000;
+  unsigned long timeout = millis() + TIMEOUT;
+  while (Serial.available() /*&& (millis() - timeout > 0)*/) {
+    digitalWrite(13, HIGH);
+
     // get the new byte:
     char inChar = (char)Serial.read();
     // add it to the inputString:
-    message += inChar;
+    input_buff[nb_char] = inChar;
+    //message = Serial.readString();
+    nb_char++;
+
     // if the incoming character is a newline, set a flag
     // so the main loop can do something about it:
     if (inChar == '\n') {
       stringComplete = true;
+      //msg_state = message[0];
+      message = String((char*)input_buff);
+      //Serial.println(message);
+      digitalWrite(13, LOW);
+
       return;
     }
   }
+  /*if(millis() - timeout < 0)
+  {
+
+    message = ""; //if we timed out, reset message
+    //msg_state = 2;
+  }*/
 }
 // #endregion
 
@@ -144,6 +182,7 @@ bool manage_translator(float speed)
   else //if nothing happened on command pannel, process message
   {
     motor_up.set_cmd(speed);
+
     return (speed != 0);
   }
 }
@@ -173,29 +212,36 @@ bool manage_drill(bool cmd)
 void actuatorLoop(){
   // If serial message, actuate based on it.
   if(stringComplete){
+    //msg_state = 1;
     String splitMessages[COMMAND_LENGTH];
+
     for(int i = 0; i < COMMAND_LENGTH; i++){
       splitMessages[0] = "";
+      //Serial.print(message[i]);
     }
     split(message, splitMessages);
 
     // We've already used this message
     message = "";
     stringComplete = false;
-    // status, blue, white, red
+    nb_char = 0;
+    empty_buffer();
+
     if(splitMessages[0] != "0"){
       return;
     }
-    light.set_cmd(str2bool(splitMessages[3]));        // DoserPump float flow_rate
+    //msg_state = splitMessages[4];
+    light.set_cmd(str2bool(splitMessages[3]));
+    motor_left.set_cmd(splitMessages[4].toFloat());
 
-    motor_left.set_cmd(splitMessages[4].toFloat());        // DoserPump float flow_rate
-    motor_right.set_cmd(splitMessages[5].toFloat());        // DoserPump float flow_rate
-
+    motor_right.set_cmd(splitMessages[5].toFloat());
     //allows to handle manual command directly from arduino, in case of link mismatch
     manage_drill(str2bool(splitMessages[1]));
     manage_translator(splitMessages[6].toFloat());
 
   }
+  //else
+    //msg_state = 2;
 
   // Run the update loop
   bool allActuatorSuccess = true;
@@ -272,6 +318,7 @@ void split(String messages, String* splitMessages,  char delimiter){
     splitMessages[i] = nextMessage;
     indexOfComma = nextIndex;
   }
+
 }
 
 bool beginModule(Module &module, String name){

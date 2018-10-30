@@ -1,0 +1,16 @@
+{
+    "name": "light_manager",
+    "keywords": "actuator, light",
+    "description": "",
+    "repository": {
+        "type": "git",
+        "url": ""
+    },
+    "frameworks": "arduino",
+    "platforms": "*",
+    "dependencies": [
+        {
+            "name": "openag_module"
+        }
+    ]
+}
